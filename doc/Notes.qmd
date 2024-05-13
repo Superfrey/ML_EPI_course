@@ -1,0 +1,53 @@
+---
+title: "Notes"
+format: html
+editor: visual
+---
+
+# Day 1: Introduction to ML
+
+*Semi-supervised learning of the electronic health record for phenotype stratification*
+
+https://doi.org/10.1016/j.jbi.2016.10.007
+
+*Descriptions of data and algorithms*
+
+Small n, large-p vs Small p, large-n o n-number of individuals in dataset, p-number of features for each individual
+
+o Refers to shape of dataset (wide vs long) with each having specific set of challenges Parameters 
+o a variable, internal to the model, and derived from the data; often saved as part of final model o Example: β in a regression model Hyperparameters 
+o a variable, external to the model and often set by the programmer/analyst; used to estimate model parameters or to optimize the algorithm; can also be called tuning parameter o Example: number of trees in a random forest Tuning 
+
+o Customization of a model by varying the hyperparameters to determine the values that provide the optimal performance Tidying o Structuring data to facilitate analysis; coined by Hadley Wickham of RStudio
+
+o Similar to data cleaning but has specific rules/guidelines (i.e. typical epi datasets are not tidy)
+
+*Prediciting counter factorial - Hernan*
+
+https://doi.org/10.1080/09332480.2019.1579578
+
+# Questions
+
+How do we find the advantages of the specific ML model that fit our problem?
+- Should we test all models, and then chose based on predective performance?
+
+How can we increase interpability of reuslts from ML e.g. random forrest? - Indentify the prediction are doing well in certain subgroups?
+
+Feature Selection: Are more features always better? - Any risk by to many features
+
+
+## Discrimination and calibration?
+
+# Terms
+
+recall = sensitivity
+
+# Inspiration
+
+Choose a model?
+
+*Model selection* - Do the 70 / 30 split, bootstrapping, or cross-validation, on different models (cox, RFS, other?) - Select best model performance
+
+*Model development* - Do the developing on the model whole dataset?
+
+**Document the steps for developing the model** - import - tidy - transformation - model- evaluation
