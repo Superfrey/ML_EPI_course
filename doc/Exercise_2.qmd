@@ -1,0 +1,253 @@
+---
+title: "Exercise 2"
+format: html
+editor: visual
+---
+
+Exercise 2a: Classifying US States by Crime
+
+Using the built-in dataset from the R package USArrests, identify clusters of states based on recent crime statistics. You can use either k-means or hierarchical clustering. For hierarchical analysis, use Euclidian distance measure to construct your dissimilary matrix and any linkage method you'd like.
+```{r}
+library(dplyr)
+library(stats)
+library(factoextra)
+library(cluster)
+library(flexclust)
+library(FeatureImpCluster)
+library(dendextend)
+library(here)
+library(gtsummary)
+```
+# Prepare and import data
+```{r}
+#| include: false
+data(USArrests)
+names(USArrests)
+USArrests <- na.omit(USArrests)
+str(USArrests)
+
+```
+
+# Scale data
+```{r}
+USArrests %>% 
+    summarise_all(mean)
+
+USArrests %>% 
+    summarise_all(sd)
+
+USArrests_scale <- scale(USArrests)
+```
+# K-means clustering
+
+## Random cluster selection
+```{r}
+#Alternative syntax
+
+set.seed(123)
+clusters <- USArrests_scale %>%
+  kmeans(centers = 5, nstart = 25)
+
+clusters %>%
+  str()
+
+fviz_cluster(clusters, data= USArrests_scale)
+
+#Show the mean value of features within each cluster
+clusters$centers
+```
+
+## chose cluster selection
+
+```{r}
+#Conduct a gap_statistic analysis to determine optimal number of clusters
+set.seed(123)
+gap_stat<-clusGap(USArrests_scale, FUN=kmeans, nstart=25, K.max=20, B=10)
+print(gap_stat, method="firstmax")
+plot(gap_stat)
+
+#Gap-statistic identifies 7 as the optimal number of clusters
+
+clusters.4<-kmeans(USArrests_scale, 4, nstart=25)
+str(clusters.4)
+fviz_cluster(clusters.4, data= USArrests_scale)
+
+#Interpret values within clusters
+clusters.4$centers
+
+#Examine variable importance
+cl_kcca<-flexclust::as.kcca(clusters.4, USArrests_scale)
+
+importance <-FeatureImpCluster(
+  cl_kcca,
+  data.table(USArrests_scale)
+)
+plot(importance)
+```
+
+```{r}
+USArrests$group <- as.factor(clusters.4$cluster)
+
+USArrests %>% 
+tbl_summary(by = "group") %>% 
+    add_p()
+
+levels(USArrests$group) <-  c("High overall crime", "Mid_crime","Low_crime", "High__crime_murder")
+
+```
+
+
+
+
+Make sure to:
+    1. Determine the optimal number of clusters using a clear, data-driven strategy.
+    2. Describe the composition of each cluster in terms of the original input features.
+
+Also consider: How could this analysis be used for health research? What are some of the scientific and ethical considerations of this data-driven analysis?
+
+Reminder: To load the dataset into the environment, use data("USArrests")
+
+
+Exercise 2b:  Predicting Current Alcohol Consumption from Behavioral Scores
+
+Dataset Description:
+
+These data were collected as part of an online survey related to drug and alcohol use and personality traits. Individuals answered standardized questions which were used to calculate continuous scores on personality traits. Individuals were also asked about consumption of alcohol and multiple drugs. Further information on this dataset can be found at http://archive.ics.uci.edu/ml/datasets/Drug+consumption+%28quantified%29#Links to an external site..
+
+For the purpose of this exercise, the data has been subset to include only 7 features on personality traits and the variable which distinguishes those who reported current alcohol use (defined as alcohol use in the past month or more frequently) vs no current use. Data can be accessed here: alcohol_use.csv
+
+Feature Information: Below is a list of the 7 features and outcome variable within the dataset. Note the dataset also contains an ID variable. In general, the higher value of the score, the greater the personality trait observed within the individual based on the questionnaire.
+
+    alc_consumption: CurrentUse, NotCurrentUse 
+    neurotocism_score: Measure of Neuroticism
+    extroversion_score: Measure of Extroversion
+    openness_score: Measure of Openness to Experiences
+    agreeableness_score: Measure of Agreeableness
+    conscientiousness_score: Measure of Conscientiousness
+    impulsiveness_score: Measure of Impulsivity
+    sens_seeking_score: Measure of Sensation-Seeking Behaviors.
+
+ Instructions for Exercise:
+
+You want to predict alcohol consumption but it is expensive and time-consuming to administer all of the behavioral testing that produces the personality scores. You will conduct a reproducible analysis to build and test classification models using regularized logistic regression and traditional logistic regression.
+
+# Step 1: Create and compare three different models:
+
+    A model that chooses alpha and lambda via cross-validation using all of the features
+    A lasso model using all of the features
+    A model that uses all the features and traditional logistic regression (as a comparison)
+
+```{r}
+#| inlcude: false
+
+alcohol <- vroom(here("data-raw/alcohol_use.csv"))
+names(alcohol)
+table(alcohol$alc_consumption)
+alcohol$alc_consumption <- as.factor(alcohol$alc_consumption)
+
+alcohol <- na.omit(alcohol)
+```
+
+**Split data**
+```{r}
+train.indices<-createDataPartition(y=alcohol$alc_consumption,p=0.7,list=FALSE)
+train.data<-alcohol[train.indices, ]
+test.data<-alcohol[-train.indices, ]
+```
+
+
+Within each model, you should tune the hyperparameters and compare the performance of all three models within the training set using cross-validation.
+
+## Regularization
+```{r}
+#Create grid to search lambda
+lambda<-10^seq(-3,3, length=1000)
+
+set.seed(123)
+
+#Note replacing tuneLength with tuneGrid
+ridge.model <- train(
+         alc_consumption ~., data=train.data,
+         method="glmnet", 
+         trControl=trainControl("cv", number=10), 
+         preProc=c("center", "scale"), 
+         tuneGrid=expand.grid(alpha=0, lambda=lambda)
+)
+
+ridge.model$bestTune
+  
+# Model coefficients
+coef(ridge.model$finalModel, ridge.model$bestTune$lambda)
+
+# Make predictions in test set
+
+ridge.pred <- ridge.model %>% predict(test.data)
+
+# Model prediction performance
+postResample(ridge.pred,test.data$alc_consumption)
+confusionMatrix(ridge.model)
+```
+## LASSO
+
+```{r}
+#Create grid to search lambda
+lambda <- 10^seq(-3,3, length=1000)
+
+set.seed(123)
+
+#Note replacing tuneLength with tuneGrid
+lasso.model<-train(
+         alc_consumption ~., data=train.data,
+         method="glmnet", 
+         trControl=trainControl("cv", number=10), 
+         preProc=c("center", "scale"), 
+         tuneGrid=expand.grid(alpha = 1, lambda=lambda)
+)
+
+lasso.model$bestTune
+  
+# Model coefficients
+coef(lasso.model$finalModel, lasso.model$bestTune$lambda)
+
+# Make predictions in test set
+
+lasso.pred <- lasso.model %>% predict(test.data)
+
+# Model prediction performance
+postResample(lasso.pred,test.data$alc_consumption)
+
+confusionMatrix(lasso.model)
+```
+
+## Logistic Regression
+
+```{r training}
+set.seed(123)
+
+train.control.settings<-trainControl(method="cv", 
+                                     number=10)
+logit.caret<-train(alc_consumption ~ .,
+                   data=train.data, 
+                   method="glm", 
+                   family="binomial", 
+                   trControl=train.control.settings)
+
+logit.caret$results
+
+perf <- predict(logit.caret, test.data)
+
+confusionMatrix(perf)
+
+
+```
+
+
+Step 2: Decide which model you would choose as your final model. 
+
+Step 3:  Apply your final model in the test set and report your final evaluation metrics. 
+
+Step 4: Consider: What research questions could this analysis either a) directly address or b) indirectly help to address by providing information that could be used in subsequent analyses? Limit this response to no more than 1 paragraph. Be sure to use complete sentences.
+
+Remember to remove the ID variable as you do not want to include that in your analysis. 
+
+Use 123 as your seed so results will be comparable and reproducible.

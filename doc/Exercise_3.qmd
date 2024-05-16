@@ -1,0 +1,39 @@
+---
+title: "Exercise_3"
+format: html
+editor: visual
+---
+
+
+Instructions: We’ve discussed that algorithms can vary in terms of their flexibility and interpretability. Flexibility indicates the ability of the algorithm to adapt to complexities in the data, such as capturing non-linear relationships, interactions, etc. Interpretability refers to how easy it is to understand the features and processes that lead to the ultimate prediction/classification. In the text, Introduction to Statistical Learning in R, the authors place a number of common supervised algorithms on a plot, according to their perceived interpretability and flexibility.
+
+In the attached file are: A) an edited version of the original plot and B) a blank version.
+
+Within your breakout group, do the following:
+
+    Place the letters corresponding to the following supervised algorithms on plo
+    
+    t A) according to where you think they fall based on interpretability and flexibility. If you disagree with the placement of any of the existing algorithms, you can indicate where you would move them.
+        Elastic Net Regression
+        Deep Learning
+        K-nearest neighbors
+    
+    Place the letters corresponding to the following research questions on plot 
+    
+    B) according to which characteristics you think are needed (flexibility vs interpretability) to appropriately address the question.
+        Developing a risk score for pancreatic cancer
+        Discovering gene-gene interactions that contribute to cardiac disease
+        Identifying risk-factors for falls in the elderly using linked hospitalization, housing and built environment data
+        Developing  automated image-based classifiers to identify malaria cells in blood smears
+    Compare placement of algorithms and research questions. For example, would you have initially selected the algorithms in the upper left-hand corner for the research questions (if any) you placed in the upper left-hand corner?
+
+
+Constructing Clinical Risk Scores
+
+    Using the Demonstration Code as a guide, create clinical risk scores for diabetes using one of the regularized regression algorithms: either ridge, elastic net or lasso.
+    
+    
+    
+    Compare your results to what was obtained to random forest. 
+    Which features were most important in contributing to the clinical risk score?
+    How useful would these clinical risk scores be in practice? What could improve them?

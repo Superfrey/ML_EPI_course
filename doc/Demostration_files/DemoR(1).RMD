@@ -1,0 +1,284 @@
+---
+title: "R Studio Demonstration"
+author: "JAS"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Study Background and Data Attributes
+
+Recently, researchers in Portugal attempted to create a biomarker-based prediction model to identify women with breast cancer. They used data that would typically be collected in routine consultations among women. Their work was reported in the following manuscript:
+
+* Patricio et al Using Resistin, glucose, age and BMI to predict the presence of breast cancer. BMC Cancer 2018; 18:29.
+The dataset is a .csv file posted on the course site.
+
+
+**Attribute Information from the Dataset**
+
+Quantitative Attributes:
+Age (years)
+BMI (kg/m2)
+Glucose (mg/dL)
+Insulin (µU/mL)
+HOMA
+Leptin (ng/mL)
+Adiponectin (µg/mL)
+Resistin (ng/mL)
+MCP-1(pg/dL)
+
+Classification Labels:
+1=Healthy controls
+2=Breast Cancer Patients
+
+***
+
+## Outline of the demonstration
+
+Using the study dataset, we will complete the following tasks. 
+
+1. Construct a table providing summaries of the quantitative features of the dataset. Summaries should include the mean, median, minimum value, and maximum value. 
+
+2. Recode BMI into the WHO-defined categories below
++ Severely underweight - BMI less than 16.5kg/m^2
++ Underweight - BMI under 18.5 kg/m^2
++ Normal weight - BMI greater than or equal to 18.5 to 24.9 kg/m^2
++ Overweight – BMI greater than or equal to 25 to 29.9 kg/m^2
++ Obesity class I – BMI 30 to 34.9 kg/m^2
++ Obesity class II – BMI 35 to 39.9 kg/m^2
++ Obesity class III – BMI greater than or equal to 40 kg/m^2 
+
+3. Construct a logistic regression model using breast cancer classification as the outcome and glucose, HOMA, leptin, BMI (continuous) and age as the independent variables.
++ Report the beta estimate and 95% confidence interval associated with a 1-unit change in HOMA
+
+4. Construct a linear regression model using insulin as the outcome and BMI (continuous), age, and glucose as the independent variables.
++ Report the beta estimate and 95% confidence interval associated with a 1-unit change in age.
+
+```{r packages}
+
+#install.package("tidyverse")
+
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stats)
+library(data.table)
+library(kableExtra)
+
+```
+
+## Import Data 
+
+You can use the read.csv function to import data. In addition, you can start to tranform the data within the import code as shown in the second option
+
+```{r dataload}
+
+library(here)
+
+# Read in data on liver function study
+
+bc.data<-read.csv(here("data-raw/bcdata_portugal.csv")) %>% 
+  mutate(Classification = as.factor(Classification))
+
+```
+
+## Task 1: Create a Table
+
+Below I show 4 different chunks of code to produce a Table of descriptives for the numeric features. 
+
+```{r create_table}
+#Using data.table package
+bc.table.temp<-summary(bc.data)[,-10]
+bc.table<-data.table(rbind(bc.table.temp[1,], bc.table.temp[3,], bc.table.temp[4,], bc.table.temp[6,]))
+bc.table
+
+#OR#
+
+quantitative_cols <- c("Age", "BMI", "Glucose", "Insulin", "HOMA", "Leptin", "Adiponectin", "Resistin", "MCP.1")
+data_quantitative <- bc.data[, quantitative_cols]
+
+#Reformat data structure
+data_long <- data_quantitative %>%
+  gather(variable, value)
+
+#Create summary metrics we want to include in table
+summaries_by_col <- data_long %>%
+  group_by(variable) %>%
+  summarize(mean = round(mean(value), 2),
+            median = round(median(value), 2),
+            min = round(min(value), 2),
+            max = round(max(value), 2))
+
+#Output formatted table
+knitr::kable(summaries_by_col)
+
+#OR#
+
+bc.data2 = janitor::clean_names(bc.data)
+summarized_df = bc.data2 %>% rename (mcp1 = mcp_1) %>%
+  dplyr::select(-c(classification)) %>% 
+  summarise(across(everything(), list(mean=mean, median=median, min = min, max = max)))  %>% 
+   pivot_longer(age_mean:mcp1_max,
+                 names_to = "Type", 
+                 values_to = "Value") %>% 
+  separate(Type, c('Quantitative features', 'Summaries')) %>% 
+  pivot_wider (names_from = "Summaries", 
+  values_from = "Value") %>% 
+knitr::kable (caption = "Summaries of the Quantitative Features", align = c ("c", "c"), digits = 2) %>%  kable_paper("striped", full_width = F) %>% 
+  column_spec(1, bold = T)
+
+summarized_df
+
+#OR#
+
+bc.data.3 <- subset(bc.data, select = -c(Classification))
+
+# Output summary measures
+output_data <- do.call(data.frame, 
+           list(min = apply(bc.data.3, 2, min),
+                max = apply(bc.data.3, 2, max),
+                median = apply(bc.data.3, 2, median),
+                mean = apply(bc.data.3, 2, mean)))
+output_data
+```
+
+## Task 2: Recode BMI into a categorical feature
+
+Again, I show multiple ways to take a continuous variable and transform it into a categorical factor variable
+
+```{r recodeBMI}
+
+bc.data.2<-bc.data %>%
+  mutate(bmi_cat = as.factor(case_when(BMI < 16.5 ~ "severely underweight",
+                                       BMI < 18.5 ~ "underweight",
+                                       BMI < 25 ~ "normal",
+                                       BMI < 30 ~ "overweight",
+                                       BMI < 35 ~ "obesity class 1",
+                                       BMI < 40 ~ "obesity class 2",
+                                       BMI >= 40 ~ "obesity class 3")))
+         bc.data.2<-tibble::rowid_to_column(bc.data.2, "ID")
+    bmi.table<-bc.data.2 %>%
+      count(bmi_cat) %>%
+      mutate(prop=prop.table(n))
+    print(bmi.table)
+
+    #OR#
+    
+attach(bc.data)  
+    bc.data$bmicat[BMI < 16.5] = "Severely underweight"   
+    bc.data$bmicat[BMI < 18.5] = "Underweight"  
+    bc.data$bmicat[BMI >= 18.5 & BMI <= 24.9] = "Normal Weight"  
+    bc.data$bmicat[BMI >= 25 & BMI <= 29.9] = "Overweight"  
+    bc.data$bmicat[BMI >= 30 & BMI <= 34.9] = "Obesity class 1"  
+    bc.data$bmicat[BMI >= 35 & BMI <= 39.9] = "Obesity class 2"  
+    bc.data$bmicat[BMI >= 40] = "Obesity class 3"
+detach(bc.data)
+    
+table(bc.data$bmicat)
+```
+
+## Task 3: Construct a Logistic Regression Model and Output the Estimate and 95% Confidence Interval
+
+Need to make Classification a factor variable in order to run logistic regression
+
+```{r logitmodel}
+
+bc.data$Classification<-as.factor(bc.data$Classification)
+levels(bc.data$Classification)<-c("Controls", "Cases")
+
+#OR#
+
+bcdata_df = bc.data %>% mutate(Classification = recode_factor(Classification,
+                                                             "1"="0",
+                                                             "2"="1"))
+
+
+logit.model <- glm(Classification ~ HOMA+Glucose+Leptin+Age+BMI, data = bc.data, family = "binomial")
+ci.temp<-confint(logit.model)
+estimate<-logit.model$coefficients["HOMA"]
+ci<-ci.temp["HOMA",]
+
+exp(estimate)
+exp(ci)
+
+#OR#
+
+logistic_model =
+  bc.data %>% 
+  
+  glm(
+    Classification ~ Glucose + HOMA + Leptin + BMI + Age,
+    data = .,
+    family = binomial
+  ) 
+
+logistic_model_tidy =
+  logistic_model %>% 
+  broom::tidy()
+
+ci_betas =
+  as.data.frame(
+    confint(logistic_model)
+  ) %>% 
+  add_column(
+    Variable = c(
+      '(Intercept)',
+      'Glucose',     
+      'HOMA',  
+      'Leptin',      
+      'BMI',         
+      'Age')
+  )
+
+final_table_logistic = 
+  inner_join(
+    logistic_model_tidy,
+    ci_betas,
+    by = c('term' = 'Variable')
+  ) %>% 
+  dplyr::select(term, estimate, '2.5 %', '97.5 %', everything())
+
+final_table_logistic %>% 
+  knitr::kable()
+
+```
+
+## Task 4: Construct a Linear Model
+
+```{r linearmodel}
+linear.model<-glm(Insulin ~ Age+BMI+Glucose, data=bc.data)
+ci.temp.2<-confint(linear.model)
+
+estimate.2<-linear.model$coefficients["Age"]
+ci.2<-ci.temp.2["Age",]
+
+estimate.2
+ci.2
+
+#OR#
+
+linear.model.2 <-
+  lm(Insulin ~ BMI + Age + Glucose, 
+      data = bc.data) %>% 
+  broom::tidy() %>% 
+  mutate(
+    "95% CI LL" = estimate - (std.error*1.96),
+    "95% CI UL" = estimate + (std.error*1.96)) %>% 
+  
+  select(term, estimate, `95% CI LL`, `95% CI UL`)
+
+knitr::kable(
+  linear.model.2, 
+  caption = "**Table 3.** Linear Regression Beta Estimates and 95% Confidence Intervals",
+  digits = 3)
+
+```
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

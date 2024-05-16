@@ -14,40 +14,292 @@ https://doi.org/10.1016/j.jbi.2016.10.007
 
 Small n, large-p vs Small p, large-n o n-number of individuals in dataset, p-number of features for each individual
 
-o Refers to shape of dataset (wide vs long) with each having specific set of challenges Parameters 
-o a variable, internal to the model, and derived from the data; often saved as part of final model o Example: β in a regression model Hyperparameters 
-o a variable, external to the model and often set by the programmer/analyst; used to estimate model parameters or to optimize the algorithm; can also be called tuning parameter o Example: number of trees in a random forest Tuning 
+o Refers to shape of dataset (wide vs long) with each having specific set of challenges Parameters o a variable, internal to the model, and derived from the data; often saved as part of final model o Example: β in a regression model Hyperparameters o a variable, external to the model and often set by the programmer/analyst; used to estimate model parameters or to optimize the algorithm; can also be called tuning parameter o Example: number of trees in a random forest Tuning
 
 o Customization of a model by varying the hyperparameters to determine the values that provide the optimal performance Tidying o Structuring data to facilitate analysis; coined by Hadley Wickham of RStudio
 
 o Similar to data cleaning but has specific rules/guidelines (i.e. typical epi datasets are not tidy)
 
-*Prediciting counter factorial - Hernan*
+*Prediciting counter factorial and using ML - Hernan*
 
 https://doi.org/10.1080/09332480.2019.1579578
 
+# Day 2: Unsupervised learning
+
+Using cases: - Clustering - new phenotypes?
+
+What is the pitfalls
+
+# Day 3: Tree esambles
+
+Why?
+
+-   we need higher complexity
+-   Heterogeneous effect (groups respond differently)
+
+## Classification trees
+
+-   If we chose a certain decision we get a probability of different outcomes
+
+*Key terms*
+
+-   "greedy" Algorithm
+    -   
+-   Surrogate split
+    -   Handling missing data
+-   Node purity
+    -   Maximaze node purity to obtain optimal classification
+-   Measures of purity
+
+*Classification and regression Trees (CART)*
+
+-   
+
+*Determine split*
+
+-   Step 1: Devide feature the space
+    -   Across all features we determine their split.
+-   Step 2: Assign avarge outcome value / model classification as prediction to all observations
+    -   feature-split combination that leads to greatest puritity is selected
+
+Regression Trees: minimize residual error
+
+## Steps of trees
+
+**How larger tree to grow?** - maximum tree depth - too deep we cant interpret - minimum number of observations to consider potential splits - define number of lowest obersation criteria - minimum number of observations in terminal node - - lack of improvement in node purity
+
+**in genetics the trees can track interactions between genes**
+
+**Prune the tree to reduce variance**
+
+-   we prune based on hyperparameter called Cp
+-   This is a penalty
+-   Cp \> 0: more pruning
+
+**Variable Importance**
+
+-   Often interpeder a ranking rather as a quantative measure
+-   Calculation depends upon the algorithm used
+
+features with high correlation with other features will get a high VIP, because they are appart of surrogate splits.
+
+**Stenght**
+
+Good balance between flexibility and interpretability Visualisation of the data struture Natural accommodates interaction between features
+
+**Limits** - Features (continuous vs ordinal) - Greediness of the algortihm (two step process: split here and then there) - methods to do optimal split - Small changes in data or features easily changes the trees¨
+
+**Ensemble methods**
+
+-   every models has it strenght and limits
+-   the idea is to use multiple clissifiers (model) to predict on classifier.
+
+## Random forrest
+
+Extestion of bagging of trees
+
+-   RF improves prediciton overall
+-   Respecting different prediciton paths
+-   mtry (m) = number of trees is a hyperparameter
+    -   not enough tree - with do not learn enough
+-   depth of trees
+-   No pruning
+-   The variance is low because the trees are not related to eachother
+-   Interpret via VIP
+    -   Accuracy base Importance
+        -   Within OOB, records prediciton errro
+        -   Permutate the feature and recalculate prediction
+        -   Difference in two errors are avereaged over trees and normalized
+    -   Node purity based imporatance (gini importance for classicfication)
+        -   Important if you are interested in finding subpopulations
+        -   Within OOB, total decrease in node impurities from splitting on variable avereaged over all trees.
+        -   It only benifits subpopulation
+        -   Find imporatant interactions
+
+## Boosting
+
+- Do not use caret for boosting
+
+- gbm work better getting faster to point through the tree
+
+XGboost - gradient boost
+
+**Boosting**
+
+-   slow learner based on prior mistakes -Hyperparameters:
+    -   B - number of trees
+    -   lambda - Learning rate or shrinkage parameter
+    -   d - number of splits in a tree, controls complexity
+-   by each iteration the model ephersizes on incorrectly predicitons
+
+**Gradient boosting**
+
+-   iterative process that finds the minimal of a function
+    -   local max / min
+    -   global max / min
+
+My error is minimize before it increases again. Implementation is key balance the local and global
+
+
+**AdaBoost**
+
+## Stacking
+
+- Use multple learnerns (models)
+- Example in Epi: SuperLearner
+
+# Day 4: Imputation and causal inference
+
+
+# Group assignments (ideas)
+
+- new phenotypes (based on k-means) predictive value in risk scores
+    - vs continuous exposures
+
+- LASSO regularisation of omics
+- PCA or k-means of omics
+
+- Predictive value based on LASSO and PCA in a normal risk score
+
 # Questions
 
+- Sample size for imputation?
+
+- Train a prober tree (lenght, depth, number of treest)
+
+- Efforts to visualise RF og Boosting?
+
+- Step forward method: for find heterogeneous effect/prediction using RF
+
+How do we chose PCA instead of K-means clustering - Kmeans is descriptive and PCA is dimension reduction of features
+
 How do we find the advantages of the specific ML model that fit our problem?
-- Should we test all models, and then chose based on predective performance?
 
-How can we increase interpability of reuslts from ML e.g. random forrest? - Indentify the prediction are doing well in certain subgroups?
+-   Should we test all models, and then chose based on predective performance?
 
-Feature Selection: Are more features always better? - Any risk by to many features
+-   How can we increase interpability of reuslts from ML e.g. random forrest?
 
+-   Indentify the prediction are doing well in certain subgroups?
+    - varimpgini - how do we find
 
-## Discrimination and calibration?
+Feature Selection: Are more features always better?
+
+-   Any risk by to many features
+
+Can we deal with selection bias in risk model? - weight the prediction model..
+
+-   Discrimination and calibration?
 
 # Terms
 
 recall = sensitivity
 
+# Reading list
+
+As we work through course content, this overview paper by Bi et al may be useful.
+
+Bi Q, Goodman KE, Kaminsky J, Lessler J. What is machine learning? A primer for the epidemiologist. AJE 2019; 188:2222-2239. Bi_et_al_2019.pdf
+
+In addition, the following readings are provided to supplement course content. Nothing is required for this course, but many of these papers will be referenced within lectures. 
+
+Presented in chronological order
+
+Shmueli G. To explain or to predict? Statistical science 2010; 25:289-310.
+
+
+Westreich D, Lessler J, Funk M. Propensity score estimation: neural networks, support vector machines, decision trees (CART) and meta-classifiers as alternatives to logistic regression. J Clin Epidemiol 2010; 63:826-33.
+
+
+Touw WG, Bayjanov, Overmars L, Backus L. et al. Data mining in the life sciences with random forest: a walk in the park or lost in the jungle? Brief Bioinformatics 2013; 14:315-326.
+
+
+Lazer D, Kennedy R, King G, Vespignani A. The parable of Google Flu: Traps in Big Data Analysis. Science 2014; 343:1203-1205.
+
+
+Chiavegatto Filho ADP, Dos Santos HG, do Nascimento CF, Massa K, Kawachi I. Overachieving municipalities in public health: A machine learning approach. Epidemiology 2018; 29:836-40.
+
+
+Naimi AI, Platt RW, Larkin JC. Machine learning for fetal growth prediction. Epidemiology 2018; 29:290-298.
+
+
+Mooney SJ and Pejaver V. Big Data in Public Health: Terminology, machine learning and privacy. Annual Review of Public Health 2018; 39:95-112.
+
+
+Obermeyter Z, Powers B, Vogeli C, Mullainathan S. Dissecting racial bias in an algorithm used to manage the health of populations. Science 2019; 366:447-453.
+
+
+Chowdhury AS, Lofgren ET, Moehring RW, Broschat SL. Identifying predictors of antimicrobial exposure in hospitalized patients using a machine learning approach Journal of Applied Microbiology 2019; doi:10.1111/jam.14499.
+
+
+Platt RW, Grandi SM. Machine learning for the prediction of postpartum complications is promising, but needs rigorous evaluation BJOG 2019; 126:710.
+
+
+Weichenthal S, Hatzopoulou M, Brauer M. A picture tells a thousand…exposures: Opportunities and challenges of deep learning image analysis in exposure science and environmental epidemiology. Environment International 2019; 122:3-10.
+
+Robinson WR, Renson A, Naimi AI. Teaching yourself about structural racism will improve your machine learning. Biostatistics 2020; 21:339-344.
+
+
+Baurley JW, Kjaersgaard AK, Zwick ME, Cronin-Fenton DP, Collin LJ, Damkier P, Hamilton-Dutoit S, Lash TL, Ahern TP. Bayesian pathway analysis for complex interactions AJE 2020; 189:1610-1622.
+
+
+Blakely T, Lynch J, Simons K, Bentley R, Rose S. Reflecting on modern methods: when worlds collide-prediction, machine learning and causal inference. Int J Epi 2021; 49:2058-64.
+
+
+Jiang T, Gradus JL, Lash TL, Fox MP. Addressing measurement error in random forests using quantitative bias analysis. AJE 2021; 190:1830-40.
+
+
+Broadbent A, Grote T. Can robots do epidemiology? Machine learning, causal inference and predicting the outcomes of public health interventions. Philos Technol. 2022; 35:14.
+
+Beaulieu-Jones, Villamar MF, Scordis P, Bartmann AP et al. Predicting seizure recurrence after an initial seizure-like epidsode from routine clinical notes using large language models: a retrospective cohort study. Lancet Digital Health 2023; 5:e882-894.
+Roh ME, Mpimbaza A, Oundo B, Irish A, et al. Association between indoor residual spraying and pregnancy outcomes: a quasi-experimental study from Uganda. IJE 2022; 51(5):1489-1501. doi: 10.1093/ije/dyac043.
+
+
+Althomsons SP, Winglee K, Heilig CM, Talarico S et al. Using machine learning techniques and national tuberculosis surveillance data to predict excess growth in genotypes tuberculosis clusters. AJE 2022; 191(11):1936-43. doi:10.1093/aje/kwac117
+
+
+Rundle AG, Bader MDM, Mooney SJ. Machine learning approaches for measuring neighborhood environments in epidemiologic studies. Curr Epidemiol Rep 2022; 9(3): 175-182. doi: 10.1007/s40471-022-00296-7.
+
+
 # Inspiration
 
 Choose a model?
 
-*Model selection* - Do the 70 / 30 split, bootstrapping, or cross-validation, on different models (cox, RFS, other?) - Select best model performance
+## ADDITION-PRO
 
-*Model development* - Do the developing on the model whole dataset?
+-   Unsupervised learning of time-series heart rate and physical acceleration data Bayes Neural Network
 
-**Document the steps for developing the model** - import - tidy - transformation - model- evaluation
+## Maastricht project
+
+*Model selection*
+
+-   Do the 70 / 30 split, bootstrapping, or cross-validation, on different models (cox, RFS, other?)
+-   Select best model performance
+
+*Model development*
+
+-   Do the developing on the model whole dataset?
+
+Define inputs in Maastricht
+
+-   SCORE-2
+-   SCORE-2 + Frequency HRV
+-   SCORE-2 + SDNN
+-   Age + sex + Frequency HRV
+-   Age + sex + SDNN
+-   Age + sex + SDNN / Frequency HRV + T2D status
+
+*Model evaluation*
+
+AUC, C-index
+
+CI based on bootstrap - Prediction boostrap - or model bootstrap perform the model 1000 times (alot!=)
+
+**Document the steps for developing the model**
+
+-   import - tidy - transformation - model- evaluation
+
+*Fairness*
+
+-   Stratify your performance in subgroups
+-   Train model on subgroubs or test subgroups on the overall model
+    -   predicted risk level increase concordance with observed risk

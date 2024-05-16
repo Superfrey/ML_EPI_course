@@ -1,0 +1,183 @@
+---
+title: "Demonstration of K-Nearest Neighbors"
+author: "JAS"
+date: ''
+output:
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Demonstration of K Nearest Neighbors
+
+Using the caret package to implement KNN.
+
+***
+Data Description: 
+
+Data come from the UCI Machine Learning Repository. This is a dataset containing clinical information about individuals who are either blood donors (i.e. healthy controls) or have varying severity of liver disease.
+
+Data Set Information:
+
+The target attribute for classification is Category (blood donors vs. Hepatitis C (including its progress ('just' Hepatitis C, Fibrosis, Cirrhosis).
+
+
+Attribute Information:
+
+All attributes except Category and Sex are numerical. The laboratory data are the attributes 5-14.
+1.  X (Patient ID/No.)
+2.  Category (diagnosis) (values: '0=Blood Donor', '0s=suspect Blood Donor', '1=Hepatitis', '2=Fibrosis', '3=Cirrhosis')
+3.  Age (in years)
+4.  Sex (f,m)
+5.  ALB
+6.  ALP
+7.  ALT
+8.  AST
+9.  BIL
+10. CHE
+11. CHOL
+12. CREA
+13. GGT
+14. PROT
+
+***
+### Load Needed Packages
+
+```{r packages}
+library(dplyr)  
+library(caret)
+library(klaR)
+library(dplyr) 
+library(forcats)
+library(here)
+
+```
+
+
+### Cleaning and partitioning data
+
+Because knn is distance-based and we are using Euclidian distance, we *theoretically* only want to include numerical (continuous) features. However, we can convert our factor variables to 0/1 numerical indicators and this will enable us to use these features while still using Euclidian distance. If you have only categorical features within a dataset, one could use a different distance metric (e.g. Hamming distance). 
+
+For the purpose of this demonstration, We will collapse the outcome classification into a binary (Liver Disease, No Evidence of Disease). We are also excluding individuals with missing data.
+
+Also, note that the data are very imbalanced (i.e. the target class is <35% of the full sample). Thus, I will demonstrate how to incorporate sampling within the training step.
+
+```{r dataprep2}
+set.seed(123)
+
+hcvdat0 <- read.csv(here("data-raw//hcvdat0.csv"))
+
+#Look at features
+str(hcvdat0)
+
+#Omit those with missing data
+hcvdata<-na.omit(hcvdat0)
+
+#drop ID variables
+hcvdata$X<-NULL
+
+#Convert sex assignment to a numeric indicator 0-male/1-female
+
+hcvdata$female<-ifelse(hcvdata$Sex=="f", 1, 0)
+hcvdata$Sex<-NULL
+
+
+#Make outcome category a factor var
+hcvdata$Category<-as.factor(hcvdata$Category)
+
+#Collapse factor levels of outcome variable
+hcvdata$outcome.class<-fct_collapse(hcvdata$Category, NED=c("0=Blood Donor","0s=suspect Blood Donor"), LiverDisease=c("1=Hepatitis", "2=Fibrosis", "3=Cirrhosis"))
+
+#Drop category 
+hcvdata$Category<-NULL
+
+#Check distributions etc. Note how rare the target label (i.e. LiverDisease) is within the dataset
+summary(hcvdata)
+
+
+
+#Split data 70/30
+train.indices<-hcvdata$outcome.class %>% createDataPartition(p=0.7, list=F)
+
+train.data<-hcvdata[train.indices, ]
+test.data<-hcvdata[-train.indices, ]
+
+```
+
+### Train and assess performance of model
+
+We will use 10-fold cross validation to compare 10 different values of k. We will also use under-sampling due to the imbalance of the data.
+
+```{r trainknn}
+set.seed(123)
+
+#Set control options..using 10-fold cross-validation and using sampling due to unbalanced data
+trnctrl<-trainControl(method="cv", number=10, sampling="down")
+
+knn.model.1<-train(
+                    outcome.class~.  , 
+                    data=train.data, 
+                    method="knn", 
+                    trControl=trnctrl, 
+                    preProcess=c("center", "scale"), 
+                    tuneLength=10)
+
+#Identify optimal number of k
+knn.model.1$bestTune
+
+#See full set of results
+knn.model.1$results
+
+plot(knn.model.1$results$k, knn.model.1$results$Accuracy, type="l")
+
+#REPEAT using over-sampling due to unbalanced data
+
+set.seed(123)
+trnctrl<-trainControl(method="cv", number=10, sampling="up")
+
+knn.model.2<-train(
+                    outcome.class~.  , 
+                    data=train.data, 
+                    method="knn", 
+                    trControl=trnctrl, 
+                    preProcess=c("center", "scale"), 
+                    tuneLength=10)
+
+#REPEAT using your own vector of K-values
+
+k.vec<-seq(1,10,1)
+set.seed(123)
+knn.model.3<-train(
+                    outcome.class~.  , 
+                    data=train.data, 
+                    method="knn", 
+                    trControl=trnctrl, 
+                    preProcess=c("center", "scale"), 
+                    tuneGrid=expand.grid(k=k.vec))
+
+#Identify optimal number of k
+knn.model.3$bestTune
+
+#See full set of results
+knn.model.3$results
+
+confusionMatrix(knn.model.3)
+
+plot(knn.model.3$results$k, knn.model.3$results$Accuracy, type="l")
+
+```
+
+### Make predictions in test-set optimal k 
+
+```{r testknn}
+
+model.results.3<-predict(knn.model.3, newdata=test.data)
+confusionMatrix(model.results.3, test.data$outcome.class, positive="LiverDisease")
+
+
+```
+
