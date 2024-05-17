@@ -1,0 +1,386 @@
+---
+title: "Group presentation ML_EPI"
+format: html
+editor: visual
+author: 
+    - Morten
+    - Christian
+    - Jonas
+---
+
+# Load packages
+
+```{r}
+#| echo: false
+#| warning: false
+
+
+library(lattice)
+library(NHANES)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(here)
+library(riskCommunicator)
+library(gtsummary)
+library(rpart.plot)
+library(pROC)
+```
+# Objective
+
+To evaluate risk scores performance between different models on an external population .
+
+# Data set
+
+NHANES
+
+Framingham study
+
+# Prepare data
+
+```{r}
+#| warning: false
+
+
+data(framingham)
+data("NHANES")
+
+framingham <- framingham %>%
+  select(DIABETES, SEX, AGE, BMI, SYSBP, DIABP, CURSMOKE, educ, HEARTRTE, TOTCHOL) %>% 
+    mutate(TOTCHOL = TOTCHOL / 38.67)
+
+framingham <- na.omit(framingham)
+NHANES <- unique(NHANES)
+NHANES <- NHANES %>%
+  select(Diabetes, Gender, Age, BMI, BPSysAve, BPDiaAve, SmokeNow, Education, Pulse, TotChol)
+NHANES <- na.omit(NHANES)
+
+names(framingham) <- names(NHANES)
+```
+
+
+
+```{r}
+#| include: false
+
+
+NHANES$Diabetes <- ifelse(NHANES$Diabetes == "Yes", 1, 0)
+NHANES$Diabetes <- as.factor(NHANES$Diabetes)
+framingham$Diabetes <- as.factor(framingham$Diabetes)
+  #summary(framingham$Gender)
+  #summary(NHANES$Gender)
+NHANES$Gender <- ifelse(NHANES$Gender == "female", 1, 0)
+NHANES$Gender <- as.factor(NHANES$Gender)
+framingham$Gender <- as.factor(framingham$Gender)
+rename(framingham, Female = Gender)
+rename(NHANES, Female = Gender)
+
+framingham$Gender <- ifelse(framingham$Gender == 1, 0, 1)
+framingham$Gender <- as.factor(framingham$Gender)
+
+  #summary(framingham$Age)
+  #summary(NHANES$Age)
+  #summary(framingham$BMI)
+  #summary(NHANES$BMI)
+  #summary(framingham$BPSysAve)
+  #summary(NHANES$BPSysAve)
+  #summary(framingham$BPDiaAve)
+  #summary(NHANES$BPDiaAve)
+NHANES$BPDiaAve <- ifelse(NHANES$BPDiaAve == 0, NA, NHANES$BPDiaAve)
+  NHANES <- na.omit(NHANES)
+  #summary(framingham$SmokeNow)
+  #summary(NHANES$SmokeNow)
+NHANES$SmokeNow <- ifelse(NHANES$SmokeNow == "Yes", 1, 0)
+NHANES$SmokeNow <- as.factor(NHANES$SmokeNow)
+framingham$SmokeNow <- as.factor(framingham$SmokeNow)
+  #summary(framingham$Education)
+  #summary(NHANES$Education)
+NHANES$Education <- as.numeric(NHANES$Education)
+NHANES$Education <- ifelse(NHANES$Education == 4, 3, NHANES$Education)
+NHANES$Education <- ifelse(NHANES$Education == 5, 4, NHANES$Education)
+  range(NHANES$Education)
+NHANES$Education <- as.factor(NHANES$Education)
+framingham$Education <- as.factor(framingham$Education)
+
+evaluation_data <- framingham 
+
+framingham$Diabetes <- as.factor(framingham$Diabetes)
+
+```
+
+
+
+# Descriptive
+
+```{r}
+
+NHANES2 <- NHANES %>% 
+    mutate(data_source = "NHANES")
+
+framingham2 <- framingham %>% 
+    mutate(data_source = "Framingham")
+
+
+data_descriptive <- rbind(NHANES2, framingham2)
+
+data_descriptive %>%
+  tbl_summary(by = "data_source")
+```
+
+# Set up: Partition data into training/testing
+
+```{r partition}
+set.seed(123)
+
+training.data <- createDataPartition(NHANES$Diabetes, p = 0.7, list = F)
+train.data <- NHANES[training.data, ]
+test.data <- NHANES[-training.data, ]
+```
+
+
+
+# Model development on NHANES
+
+## Reference model logistic regression
+
+- Upsampling because of low prevalence of diabetes
+
+```{r}
+set.seed(123)
+
+control.obj <- trainControl(method = "cv", number = 10, sampling = "up")
+
+logit.drisk <- train(
+  Diabetes ~ .,
+  data = train.data,
+  method = "glm",
+  family = "binomial",
+  preProcess = c("center", "scale"),
+  trControl = control.obj
+)
+
+logit.drisk$results
+confusionMatrix(logit.drisk)
+coef(logit.drisk$finalModel)
+```
+
+## Random forrest development
+
+Prevalence of diabetes of too low in Framingham dataset gives problems in random forrest
+
+```{r randomforest}
+feat.count <- c((ncol(train.data) - 1), (ncol(train.data) - 1) / 2, sqrt(ncol(train.data) - 1))
+grid.rf <- expand.grid(mtry = feat.count)
+
+control.obj <- trainControl(method = "cv", number = 10, sampling = "up")
+# control.obj <- trainControl("cv", number = 5)
+tree.num <- seq(100, 500, by = 200)
+
+results.trees <- list()
+for (ntree in tree.num) {
+  set.seed(123)
+  rf.drisk <- train(
+    Diabetes ~ .,
+    data = train.data,
+    method = "rf",
+    trControl = control.obj,
+    metric = "Accuracy",
+    tuneGrid = grid.rf,
+    importance = TRUE,
+    ntree = ntree
+  )
+  index <- toString(ntree)
+  results.trees[[index]] <- rf.drisk$results
+}
+
+output.rf.drisk <- bind_rows(results.trees, .id = "ntrees")
+best.tune <- output.rf.drisk[which.max(output.rf.drisk[, "Accuracy"]), ]
+best.tune$mtry
+results.trees
+```
+
+
+
+
+### Final Random forrest model
+
+```{r}
+mtry.grid <- expand.grid(.mtry = best.tune$mtry)
+
+set.seed(123)
+rf.drisk.bt <- train(
+  Diabetes ~ .,
+  data = train.data,
+  method = "rf",
+  trControl = control.obj,
+  metric = "Accuracy",
+  tuneGrid = mtry.grid,
+  importance = TRUE,
+  ntree = as.numeric(best.tune$ntrees)
+)
+
+confusionMatrix(rf.drisk.bt)
+varImp(rf.drisk.bt)
+varImpPlot(rf.drisk.bt$finalModel)
+```
+
+## Ridge model
+
+```{r}
+set.seed(123)
+
+#Create grid to search lambda
+lambda <- 10^seq(-3,3, length=1000)
+
+control.obj<-trainControl(method="cv", number=10, sampling="up")
+
+#Note replacing tuneLength with tuneGrid
+ridge.model<-train(
+         Diabetes ~., data=train.data,
+         method="glmnet", 
+         trControl=control.obj, 
+         preProc=c("center", "scale"), 
+         tuneGrid=expand.grid(alpha = 0, lambda=lambda)
+)
+
+ridge.model$bestTune
+  
+# Model coefficients
+coef(ridge.model$finalModel, ridge.model$bestTune$lambda)
+
+# Make predictions in test set
+
+ridge.pred <- ridge.model %>% predict(test.data)
+
+# Model prediction performance
+confusionMatrix(ridge.model)
+```
+
+
+# Evaluate models on test set in NHANES
+
+### ROC curves
+
+```{r}
+#| echo: false
+
+# Predict in test-set and output probabilities
+rf.probs <- predict(rf.drisk.bt, test.data, type = "prob")
+
+# Pull out predicted probabilities for Diabetes=Yes
+rf.pp <- rf.probs[, 2]
+
+# Predict in test-set using response type
+logit.probs <- predict(logit.drisk, test.data, type = "prob")
+logit.pp <- logit.probs[, 2]
+
+# Predict in test-set using response type
+ridge.probs <- predict(ridge.model, test.data, type = "prob")
+ridge.pp <- ridge.probs[, 2]
+```
+
+```{r}
+# Compute ROC curves
+roc_logit <- roc(test.data$Diabetes, logit.pp, levels = rev(levels(test.data$Diabetes)))
+roc_rf <- roc(test.data$Diabetes, rf.pp, levels = rev(levels(test.data$Diabetes)))
+roc_ridge <- roc(test.data$Diabetes, ridge.pp, levels = rev(levels(test.data$Diabetes)))
+
+
+# Plot ROC curves
+plot(roc_logit, col = "blue", main = "ROC Curves for Logistic Regression and Random Forest")
+lines(roc_rf, col = "red")
+lines(roc_ridge, col = "green")
+legend("bottomright", legend = c("Logistic Regression", "Random Forest", "Ridge"), col = c("blue", "red","green"), lwd = 2)
+
+```
+
+### Calibration plot
+
+```{r}
+pred.prob <- data.frame(Class = test.data$Diabetes, logit = logit.pp, rf = rf.pp, ridge = ridge.pp)
+
+calplot <- (calibration(Class ~ logit + rf + ridge, data = pred.prob, class = "1", cuts = 10))
+
+xyplot(calplot, auto.key = list(columns = 2))
+```
+
+# Evaluate performance on external data from Framingham study
+
+```{r}
+#| echo: false
+
+# Predict in test-set and output probabilities
+rf.probs <- predict(rf.drisk.bt, evaluation_data, type = "prob")
+
+# Pull out predicted probabilities for Diabetes=Yes
+rf.pp <- rf.probs[, 2]
+
+# Predict in test-set using response type
+logit.probs <- predict(logit.drisk, evaluation_data, type = "prob")
+
+logit.pp <- logit.probs[, 2]
+
+# Predict in test-set using response type
+ridge.probs <- predict(ridge.model, evaluation_data, type = "prob")
+ridge.pp <- ridge.probs[, 2]
+```
+
+##  External performance on the Framingham study
+
+### ROC curves
+
+```{r}
+# Compute ROC curves
+roc_logit <- roc(evaluation_data$Diabetes, logit.pp, levels = rev(levels(evaluation_data$Diabetes)))
+roc_rf <- roc(evaluation_data$Diabetes, rf.pp, levels = rev(levels(evaluation_data$Diabetes)))
+roc_ridge <- roc(evaluation_data$Diabetes, ridge.pp, levels = rev(levels(evaluation_data$Diabetes)))
+
+
+# Plot ROC curves
+plot(roc_logit, col = "blue", main = "ROC Curves for Logistic Regression and Random Forest")
+lines(roc_rf, col = "red")
+lines(roc_ridge, col = "green")
+legend("bottomright", legend = c("Logistic Regression", "Random Forest", "Ridge"), col = c("blue", "red","green"), lwd = 2)
+```
+
+### Calibration plot
+
+```{r}
+pred.prob <- data.frame(Class = evaluation_data$Diabetes, logit = logit.pp, rf = rf.pp, ridge = ridge.pp)
+
+calplot <- (calibration(Class ~ logit + rf + ridge, data = pred.prob, class = "1", cuts = 10))
+
+xyplot(calplot, auto.key = list(columns = 2))
+```
+
+
+# Variable importance
+
+```{r}
+varImp(rf.drisk.bt)
+varImpPlot(rf.drisk.bt$finalModel)
+```
+
+## Visualise the pathway of risk decision
+```{r}
+set.seed(123)
+train.control <- trainControl(method = "cv", number = 10)
+
+grid.singletree <- expand.grid(cp = seq(0.0005, 0.02, by = 0.001))
+
+tree.diabetes <- train(
+  Diabetes ~ .,
+  data = train.data,
+  method = "rpart",
+  trControl = train.control,
+  tuneGrid = grid.singletree
+)
+
+
+rpart.plot(tree.diabetes$finalModel)
+```
+
+# Ethical considerations
+
+If by using a few easily obtainable features you can predict a person’s risk of developing diabetes, if that model was adopted by an insurance company, it might impact one's chance of getting an insurance and/or the price of the insurance
+

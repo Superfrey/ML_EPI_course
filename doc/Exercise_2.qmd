@@ -7,6 +7,7 @@ editor: visual
 Exercise 2a: Classifying US States by Crime
 
 Using the built-in dataset from the R package USArrests, identify clusters of states based on recent crime statistics. You can use either k-means or hierarchical clustering. For hierarchical analysis, use Euclidian distance measure to construct your dissimilary matrix and any linkage method you'd like.
+
 ```{r}
 library(dplyr)
 library(stats)
@@ -18,7 +19,9 @@ library(dendextend)
 library(here)
 library(gtsummary)
 ```
+
 # Prepare and import data
+
 ```{r}
 #| include: false
 data(USArrests)
@@ -29,6 +32,7 @@ str(USArrests)
 ```
 
 # Scale data
+
 ```{r}
 USArrests %>% 
     summarise_all(mean)
@@ -38,9 +42,11 @@ USArrests %>%
 
 USArrests_scale <- scale(USArrests)
 ```
+
 # K-means clustering
 
 ## Random cluster selection
+
 ```{r}
 #Alternative syntax
 
@@ -96,19 +102,13 @@ levels(USArrests$group) <-  c("High overall crime", "Mid_crime","Low_crime", "Hi
 
 ```
 
-
-
-
-Make sure to:
-    1. Determine the optimal number of clusters using a clear, data-driven strategy.
-    2. Describe the composition of each cluster in terms of the original input features.
+Make sure to: 1. Determine the optimal number of clusters using a clear, data-driven strategy. 2. Describe the composition of each cluster in terms of the original input features.
 
 Also consider: How could this analysis be used for health research? What are some of the scientific and ethical considerations of this data-driven analysis?
 
 Reminder: To load the dataset into the environment, use data("USArrests")
 
-
-Exercise 2b:  Predicting Current Alcohol Consumption from Behavioral Scores
+Exercise 2b: Predicting Current Alcohol Consumption from Behavioral Scores
 
 Dataset Description:
 
@@ -118,24 +118,28 @@ For the purpose of this exercise, the data has been subset to include only 7 fea
 
 Feature Information: Below is a list of the 7 features and outcome variable within the dataset. Note the dataset also contains an ID variable. In general, the higher value of the score, the greater the personality trait observed within the individual based on the questionnaire.
 
-    alc_consumption: CurrentUse, NotCurrentUse 
-    neurotocism_score: Measure of Neuroticism
-    extroversion_score: Measure of Extroversion
-    openness_score: Measure of Openness to Experiences
-    agreeableness_score: Measure of Agreeableness
-    conscientiousness_score: Measure of Conscientiousness
-    impulsiveness_score: Measure of Impulsivity
-    sens_seeking_score: Measure of Sensation-Seeking Behaviors.
+```         
+alc_consumption: CurrentUse, NotCurrentUse 
+neurotocism_score: Measure of Neuroticism
+extroversion_score: Measure of Extroversion
+openness_score: Measure of Openness to Experiences
+agreeableness_score: Measure of Agreeableness
+conscientiousness_score: Measure of Conscientiousness
+impulsiveness_score: Measure of Impulsivity
+sens_seeking_score: Measure of Sensation-Seeking Behaviors.
+```
 
- Instructions for Exercise:
+Instructions for Exercise:
 
 You want to predict alcohol consumption but it is expensive and time-consuming to administer all of the behavioral testing that produces the personality scores. You will conduct a reproducible analysis to build and test classification models using regularized logistic regression and traditional logistic regression.
 
 # Step 1: Create and compare three different models:
 
-    A model that chooses alpha and lambda via cross-validation using all of the features
-    A lasso model using all of the features
-    A model that uses all the features and traditional logistic regression (as a comparison)
+```         
+A model that chooses alpha and lambda via cross-validation using all of the features
+A lasso model using all of the features
+A model that uses all the features and traditional logistic regression (as a comparison)
+```
 
 ```{r}
 #| inlcude: false
@@ -149,16 +153,17 @@ alcohol <- na.omit(alcohol)
 ```
 
 **Split data**
+
 ```{r}
 train.indices<-createDataPartition(y=alcohol$alc_consumption,p=0.7,list=FALSE)
 train.data<-alcohol[train.indices, ]
 test.data<-alcohol[-train.indices, ]
 ```
 
-
 Within each model, you should tune the hyperparameters and compare the performance of all three models within the training set using cross-validation.
 
 ## Regularization
+
 ```{r}
 #Create grid to search lambda
 lambda<-10^seq(-3,3, length=1000)
@@ -187,6 +192,7 @@ ridge.pred <- ridge.model %>% predict(test.data)
 postResample(ridge.pred,test.data$alc_consumption)
 confusionMatrix(ridge.model)
 ```
+
 ## LASSO
 
 ```{r}
@@ -241,13 +247,12 @@ confusionMatrix(perf)
 
 ```
 
+Step 2: Decide which model you would choose as your final model.
 
-Step 2: Decide which model you would choose as your final model. 
-
-Step 3:  Apply your final model in the test set and report your final evaluation metrics. 
+Step 3: Apply your final model in the test set and report your final evaluation metrics.
 
 Step 4: Consider: What research questions could this analysis either a) directly address or b) indirectly help to address by providing information that could be used in subsequent analyses? Limit this response to no more than 1 paragraph. Be sure to use complete sentences.
 
-Remember to remove the ID variable as you do not want to include that in your analysis. 
+Remember to remove the ID variable as you do not want to include that in your analysis.
 
 Use 123 as your seed so results will be comparable and reproducible.

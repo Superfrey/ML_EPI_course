@@ -294,6 +294,8 @@ AUC, C-index
 
 CI based on bootstrap - Prediction boostrap - or model bootstrap perform the model 1000 times (alot!=)
 
+Make function for calibration plot for different subgroups
+
 **Document the steps for developing the model**
 
 -   import - tidy - transformation - model- evaluation

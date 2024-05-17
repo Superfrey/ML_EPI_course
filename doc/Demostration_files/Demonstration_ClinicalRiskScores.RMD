@@ -134,9 +134,10 @@ varImpPlot(rf.nhanes.bt$finalModel)
 
 ### Model 2: Logistic Regression
 ```{r logistic}
+
 set.seed(123)
 
-control.obj<-trainControl(method="cv", number=5, sampling="down")
+control.obj <- trainControl(method="cv", number=10, sampling="up")
 
 logit.nhanes<-train(
                     Diabetes~., 
@@ -149,13 +150,11 @@ logit.nhanes<-train(
 logit.nhanes$results
 confusionMatrix(logit.nhanes)
 coef(logit.nhanes$finalModel)
-
 ```
 
 ### Output predicted probabilities from each of the three models applied within the testing set. 
 
 ```{r predprob}
-
 #Predict in test-set and output probabilities
 rf.probs<-predict(rf.nhanes, test.data, type="prob")
 
